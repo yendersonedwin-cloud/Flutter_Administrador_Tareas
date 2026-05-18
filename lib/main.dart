@@ -47,11 +47,11 @@ class MyApp extends StatelessWidget {
               categoryRepository: context.read<CategoryRepository>(),
             ),
           ),
-          BlocProvider(
-            create: (context) => WorkspaceBloc(
-              workspaceRepository: context.read<WorkspaceRepository>(),
-            ),
-          ),
+         BlocProvider(
+  create: (context) => WorkspaceBloc(
+    repository: context.read<WorkspaceRepository>(), // 🚀 ¡Cambia a 'repository'!
+  ),
+),
           BlocProvider(
             create: (context) => ProfileBloc(
               profileRepository: context.read<ProfileRepository>(),

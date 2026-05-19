@@ -163,7 +163,7 @@ class _WorkspaceSectionViewState extends State<WorkspaceSectionView> {
                     subtitle: Padding(
                       padding: const EdgeInsets.only(top: 6.0),
                       child: Text(
-                        ws.esAdmin ? '👑 Eres Administrador' : '👥 Eres Miembro',
+                        ws.esAdmin ? ' Eres Administrador' : '👥 Eres Miembro',
                         style: TextStyle(
                           color: ws.esAdmin ? AppColors.primaryGreen : Colors.blue.shade600,
                           fontSize: 13,

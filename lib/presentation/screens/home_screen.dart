@@ -9,13 +9,13 @@ import '../../logic/profile/profile_bloc.dart';
 import '../../logic/profile/profile_event.dart';
 import '../../logic/profile/profile_state.dart';
 
-// 👇 TODOS TUS COMPONENTES MODULARES INDEPENDIENTES
 import '../widgets/homes/productivity_card.dart';
 import '../widgets/task/task_filter_tabs.dart';
 import '../widgets/task/task_list_view.dart';
-import '../widgets/category/category_section_view.dart'; // 👈 ¡La nueva joya!
-import '../widgets/workspace/workspace_section_view.dart'; // 👈 ¡La nueva joya!
-import 'add_edit_task_screen.dart';
+import '../widgets/task/add_task_modal.dart';
+import '../widgets/category/category_section_view.dart'; 
+import '../widgets/workspace/workspace_section_view.dart'; 
+import '../widgets/navigation/custom_drawer.dart'; // 🍏 Importación del Drawer
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -26,7 +26,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentSectionIndex = 0;
-  String _activeTaskFilter = 'Todas'; 
+  String _activeTaskFilter = 'Todas'; // Almacena estados: 'Todas', 'Hoy', 'Próximas', 'Completadas' o nombres de categorías
 
   @override
   void initState() {
@@ -40,29 +40,58 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
+      // 🍏 PASO CLAVE: Conectamos tu menú lateral de la foto al Scaffold
+      drawer: CustomDrawer(
+        activeFilter: _activeTaskFilter,
+        onFilterChanged: (nuevoFiltro) {
+          setState(() {
+            _activeTaskFilter = nuevoFiltro;
+            _currentSectionIndex = 0; // Fuerza a regresar al dashboard principal para ver las tareas filtradas
+          });
+        },
+      ),
       appBar: AppBar(
-        backgroundColor: AppColors.backgroundLight,
+        backgroundColor: AppColors.surfaceWhite,
         elevation: 0,
-        automaticallyImplyLeading: false,
-        title: const Row(
+        scrolledUnderElevation: 0,
+        // 🍏 Botón personalizado de menú para abrir el Drawer con las 3 líneas
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu_rounded, color: AppColors.textDark, size: 26),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
+        ),
+        title: Row(
           children: [
-            Icon(Icons.notes, color: AppColors.textDark, size: 28),
-            SizedBox(width: 12),
-            Icon(Icons.work_outline, color: AppColors.textDark, size: 24),
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: AppColors.primaryGreenPastel,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.business_center_rounded, 
+                color: AppColors.primaryGreen, 
+                size: 18,
+              ),
+            ),
+            const SizedBox(width: 10),
+            const Text(
+              'TaskFlow',
+              style: TextStyle(
+                color: AppColors.textDark,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ],
         ),
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0),
-            child: GestureDetector(
-              onTap: () => setState(() => _currentSectionIndex = 2), 
-              child: const CircleAvatar(
-                radius: 18,
-                backgroundColor: AppColors.primaryGreenPastel,
-                child: Icon(Icons.person, color: AppColors.primaryGreen, size: 20),
-              ),
-            ),
+          IconButton(
+            icon: const Icon(Icons.notifications_none_rounded, color: AppColors.textDark, size: 24),
+            onPressed: () {},
           ),
+          const SizedBox(width: 8),
         ],
       ),
       body: IndexedStack(
@@ -74,10 +103,8 @@ class _HomeScreenState extends State<HomeScreen> {
               child: _buildMainDashboardView(),
             ),
           ),
-          // 👇 REEMPLAZO AQUÍ: Conectamos la vista inteligente que hablará con Django
           const WorkspaceSectionView(), 
-          
-          _buildProfileSectionView(), 
+          _buildProfileSectionView(),   
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
@@ -98,9 +125,16 @@ class _HomeScreenState extends State<HomeScreen> {
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          await Navigator.push(context, MaterialPageRoute(builder: (context) => const AddEditTaskScreen()));
+          final created = await showModalBottomSheet<bool>(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: Colors.transparent,
+            builder: (context) => const AddTaskModal(),
+          );
           if (!context.mounted) return;
-          context.read<TaskBloc>().add(TaskLoadEvent());
+          if (created == true) {
+            context.read<TaskBloc>().add(TaskLoadEvent());
+          }
         },
         backgroundColor: AppColors.primaryGreen,
         shape: const CircleBorder(),
@@ -109,14 +143,12 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // 📐 EL DASHBOARD QUEDÓ CONVERTIDO EN UNA MAQUETA LIMPIA Y ORDENADA
   Widget _buildMainDashboardView() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Saludo Dinámico
           BlocBuilder<ProfileBloc, ProfileState>(
             builder: (context, state) {
               String username = 'Usuario';
@@ -131,20 +163,18 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
           const SizedBox(height: 20),
-          
-          const ProductivityCard(), // 👈 1. Tarjeta de Productividad
+          const ProductivityCard(), 
           const SizedBox(height: 24),
-          
-          TaskFilterTabs( // 👈 2. Filtros de Tareas
+          // Las pestañas rápidas del dashboard
+          TaskFilterTabs( 
             activeFilter: _activeTaskFilter,
             onFilterChanged: (nuevoFiltro) => setState(() => _activeTaskFilter = nuevoFiltro),
           ),
           const SizedBox(height: 16),
-          
-          TaskListView(activeFilter: _activeTaskFilter), // 👈 3. Listado de Tareas
+          // El listview ahora procesará los filtros nuevos ('Completadas', etc.)
+          TaskListView(activeFilter: _activeTaskFilter), 
           const SizedBox(height: 24),
-          
-          const CategorySectionView(), // 👈 4. ¡NUEVA SECCIÓN DE CATEGORÍAS COMPACTA!
+          const CategorySectionView(), 
           const SizedBox(height: 80),
         ],
       ),
@@ -195,9 +225,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
-                          _buildProfileStatItem(totales.toString(), 'Tareas'),
-                          _buildProfileStatItem(completadas.toString(), 'Hechas'),
-                          _buildProfileStatItem('$rendimiento%', 'Productividad'),
+                          Column(children: [Text(totales.toString(), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.primaryGreen)), const Text('Tareas', style: TextStyle(fontSize: 12, color: AppColors.textMuted))]),
+                          Column(children: [Text(completadas.toString(), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.primaryGreen)), const Text('Hechas', style: TextStyle(fontSize: 12, color: AppColors.textMuted))]),
+                          Column(children: [Text('$rendimiento%', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.primaryGreen)), const Text('Rendimiento', style: TextStyle(fontSize: 12, color: AppColors.textMuted))]),
                         ],
                       ),
                     );
@@ -233,16 +263,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         );
       },
-    );
-  }
-
-  Widget _buildProfileStatItem(String value, String label) {
-    return Column(
-      children: [
-        Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.primaryGreen)),
-        const SizedBox(height: 4),
-        Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textMuted, fontWeight: FontWeight.w500)),
-      ],
     );
   }
 

@@ -66,7 +66,25 @@ class TaskRepository {
     }
   }
 
+  // Añadir este método al final de TaskRepository en lib/data/repositories/task_repository.dart
   Future<TaskModel> toggleComplete(int id, bool completada) async {
-    return updateTarea(id, {'completada': !completada});
+    try {
+      // Mapeamos a los campos booleanos que espera tu backend (completada y estado DONE/TODO)
+      final Map<String, dynamic> dataToggle = {
+        'completada': completada,
+        'estado': completada ? 'DONE' : 'TODO',
+      };
+
+      final response = await _apiService.patch('/tareas/$id/', dataToggle);
+
+      if (response.statusCode == 200) {
+        return TaskModel.fromJson(json.decode(response.body));
+      } else {
+        throw Exception('Error al cambiar estado de tarea: ${response.body}');
+      }
+    } catch (e) {
+      log('Error toggleComplete: $e');
+      throw Exception('Error de conexión: $e');
+    }
   }
 }

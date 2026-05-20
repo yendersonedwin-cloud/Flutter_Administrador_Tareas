@@ -101,28 +101,31 @@ class TaskBloc extends Bloc<TaskEvent, TaskState> {
     }
   }
 
-  Future<void> _onToggleComplete(
-    TaskToggleCompleteEvent event,
-    Emitter<TaskState> emit,
-  ) async {
-    final currentState = state;
-    if (currentState is TaskLoaded) {
-      try {
-        final tareaActualizada = await _taskRepository.toggleComplete(
-          event.id,
-          event.completada,
-        );
-        final nuevasTareas = currentState.tareas.map((tarea) {
-          return tarea.id == event.id ? tareaActualizada : tarea;
-        }).toList();
-        emit(TaskLoaded(tareas: nuevasTareas));
-      } catch (e) {
-        emit(TaskError(message: 'Error al completar tarea: $e'));
-        emit(currentState);
-      }
+// Agrega esta función al final de lib/logic/task/task_bloc.dart
+Future<void> _onToggleComplete(
+  TaskToggleCompleteEvent event,
+  Emitter<TaskState> emit,
+) async {
+  final currentState = state;
+  if (currentState is TaskLoaded) {
+    try {
+      // 🚀 Llamamos al repositorio para actualizar en Django
+      final tareaActualizada = await _taskRepository.toggleComplete(
+        event.id,
+        event.completada,
+      );
+      // Actualizamos el estado local reactivamente sin recargar
+      final nuevasTareas = currentState.tareas.map((tarea) {
+        return tarea.id == event.id ? tareaActualizada : tarea;
+      }).toList();
+      emit(TaskLoaded(tareas: nuevasTareas));
+    } catch (e) {
+      emit(TaskError(message: 'Error al cambiar estado de tarea: $e'));
+      // Revertimos el estado si hay error
+      emit(currentState);
     }
   }
-
+}
   Future<void> _onLogout(TaskLogoutEvent event, Emitter<TaskState> emit) async {
     emit(TaskInitial());
   }

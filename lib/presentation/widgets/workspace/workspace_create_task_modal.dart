@@ -26,6 +26,19 @@ class _WorkspaceCreateTaskModalState extends State<WorkspaceCreateTaskModal> {
   DateTime _fechaEntrega = DateTime.now();
   bool _esEdicion = false;
 
+  // 🚀 Función interna para traducir la prioridad al formato que exige Django ('A', 'M', 'B')
+  String _mapearPrioridad(String textoPrioridad) {
+    switch (textoPrioridad) {
+      case 'Alta':
+        return 'A';
+      case 'Baja':
+        return 'B';
+      case 'Media':
+      default:
+        return 'M';
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -36,10 +49,9 @@ class _WorkspaceCreateTaskModalState extends State<WorkspaceCreateTaskModal> {
     if (_esEdicion) {
       _prioridad = widget.tareaAEditar!['prioridad'] ?? 'Media';
       _usuarioAsignado = widget.tareaAEditar!['asignado_a'];
-      // Si la fecha límite viene como String de la lista mock, la parseamos de forma segura
-      if (widget.tareaAEditar!['fecha_limite'] != null) {
+      if (widget.tareaAEditar!['fecha_vencimiento'] != null) {
         try {
-          _fechaEntrega = DateTime.parse(widget.tareaAEditar!['fecha_limite']);
+          _fechaEntrega = DateTime.parse(widget.tareaAEditar!['fecha_vencimiento']);
         } catch (_) {
           _fechaEntrega = DateTime.now();
         }
@@ -56,7 +68,6 @@ class _WorkspaceCreateTaskModalState extends State<WorkspaceCreateTaskModal> {
 
   @override
   Widget build(BuildContext context) {
-    // Lista dinámica de responsables basada en la cantidadMiembros de tu WorkspaceModel real
     final List<String> listaAsignables = ['Sebas (Tú)'];
     if (widget.workspace.cantidadMiembros > 1) {
       listaAsignables.add('Lizeth');
@@ -68,7 +79,7 @@ class _WorkspaceCreateTaskModalState extends State<WorkspaceCreateTaskModal> {
         padding: const EdgeInsets.all(24.0),
         decoration: const BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(32)), // Bordes superiores más curvos y modernos
+          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
         ),
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
@@ -78,7 +89,6 @@ class _WorkspaceCreateTaskModalState extends State<WorkspaceCreateTaskModal> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Indicador superior del BottomSheet
                 Center(
                   child: Container(
                     width: 45,
@@ -91,7 +101,6 @@ class _WorkspaceCreateTaskModalState extends State<WorkspaceCreateTaskModal> {
                 ),
                 const SizedBox(height: 20),
                 
-                // Título del formulario
                 Text(
                   _esEdicion ? '📝 Modificar Tarea' : '🚀 Nueva Tarea de Equipo',
                   style: const TextStyle(
@@ -108,7 +117,6 @@ class _WorkspaceCreateTaskModalState extends State<WorkspaceCreateTaskModal> {
                 ),
                 const SizedBox(height: 24),
 
-                // Campo de entrada: TÍTULO DE LA TAREA
                 TextFormField(
                   controller: _titleController,
                   style: const TextStyle(color: AppColors.textDark, fontSize: 15),
@@ -131,7 +139,6 @@ class _WorkspaceCreateTaskModalState extends State<WorkspaceCreateTaskModal> {
                 ),
                 const SizedBox(height: 18),
 
-                // Campo de entrada: DESCRIPCIÓN
                 TextFormField(
                   controller: _descController,
                   maxLines: 3,
@@ -157,7 +164,6 @@ class _WorkspaceCreateTaskModalState extends State<WorkspaceCreateTaskModal> {
                 ),
                 const SizedBox(height: 18),
 
-                // Selector: ASIGNAR RESPONSABLE
                 DropdownButtonFormField<String>(
                   value: listaAsignables.contains(_usuarioAsignado) ? _usuarioAsignado : null,
                   style: const TextStyle(color: AppColors.textDark, fontSize: 14),
@@ -184,7 +190,6 @@ class _WorkspaceCreateTaskModalState extends State<WorkspaceCreateTaskModal> {
                 ),
                 const SizedBox(height: 24),
 
-                // ✨ SELECTOR MODERNO DE PRIORIDAD (CHIPS INTERACTIVOS)
                 const Text(
                   'Nivel de Prioridad',
                   style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textDark),
@@ -228,7 +233,6 @@ class _WorkspaceCreateTaskModalState extends State<WorkspaceCreateTaskModal> {
                 ),
                 const SizedBox(height: 24),
 
-                // Selector: FECHA LÍMITE (CALENDARIO)
                 const Text(
                   'Fecha de Entrega',
                   style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textDark),
@@ -271,19 +275,21 @@ class _WorkspaceCreateTaskModalState extends State<WorkspaceCreateTaskModal> {
                 ),
                 const SizedBox(height: 32),
 
-                // BOTÓN DE ACCIÓN PRINCIPAL (SUBMIT)
                 SizedBox(
                   width: double.infinity,
                   height: 52,
                   child: ElevatedButton(
                     onPressed: () {
                       if (_formKey.currentState!.validate()) {
+                        // 🚀 Armamos el mapa mapeado exactamente como lo mapea TareaSerializer
                         final datosFinales = {
                           'titulo': _titleController.text.trim(),
                           'descripcion': _descController.text.trim(),
-                          'prioridad': _prioridad, // Aquí viaja el estado del chip seleccionado
-                          'asignado_a': _usuarioAsignado,
-                          'fecha_limite': _fechaEntrega.toIso8601String(),
+                          'prioridad': _mapearPrioridad(_prioridad), // 'A', 'M' o 'B'
+                          'estado': 'TODO',
+                          'completada': false,
+                          'en_progreso': false,
+                          'fecha_vencimiento': '${_fechaEntrega.year}-${_fechaEntrega.month.toString().padLeft(2, '0')}-${_fechaEntrega.day.toString().padLeft(2, '0')}', // Formato YYYY-MM-DD para Django
                           'workspace': widget.workspace.id,
                         };
                         Navigator.pop(context, datosFinales);

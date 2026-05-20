@@ -22,35 +22,34 @@ class ProfileScreen extends StatelessWidget {
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: false,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF1A1A2E), size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
+        // ✅ CORREGIDO: quitado el leading con Navigator.pop — cuando esta pantalla
+        // vive dentro del IndexedStack del HomeScreen no tiene a dónde hacer pop
+        automaticallyImplyLeading: false,
       ),
       body: BlocBuilder<AuthBloc, AuthState>(
         builder: (context, authState) {
           String username = '';
           String email = '';
-          
+
           if (authState is AuthAuthenticated) {
             username = authState.username.isNotEmpty ? authState.username : 'Usuario';
             email = '${username.toLowerCase()}@taskflow.com';
           }
-          
+
           return BlocBuilder<TaskBloc, TaskState>(
             builder: (context, taskState) {
               int totalTareas = 0;
               int tareasCompletadas = 0;
               int tareasPendientes = 0;
               double progreso = 0;
-              
+
               if (taskState is TaskLoaded) {
                 totalTareas = taskState.tareas.length;
                 tareasCompletadas = taskState.tareas.where((t) => t.completada).length;
                 tareasPendientes = totalTareas - tareasCompletadas;
                 progreso = totalTareas > 0 ? (tareasCompletadas / totalTareas) : 0;
               }
-              
+
               return SingleChildScrollView(
                 child: Column(
                   children: [
@@ -281,6 +280,7 @@ class ProfileScreen extends StatelessWidget {
                     // Botón cerrar sesión
                     Container(
                       margin: const EdgeInsets.symmetric(horizontal: 20),
+                      width: double.infinity,
                       child: OutlinedButton.icon(
                         onPressed: () => _showLogoutDialog(context),
                         icon: const Icon(Icons.logout, color: Color(0xFFFF5A5A), size: 20),

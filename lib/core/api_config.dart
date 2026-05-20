@@ -1,12 +1,12 @@
 // lib/core/api_config.dart
 
 class ApiConfig {
-  // Tu base URL
-  static const String baseUrl = 'http://192.168.20.11:8080/api/v1';
+  // ✅ NUEVA IP (cámbiala aquí)
+  static const String baseUrl = 'http://192.168.101.77:8080/api/v1';
   
   // Endpoints
   static const String loginEndpoint = '/login/';
-  static const String registerEndpoint = '/register/';  // ✅ AÑADE ESTO
+  static const String registerEndpoint = '/register/';
   static const String tareasEndpoint = '/tareas/';
   static const String categoriasEndpoint = '/categorias/';
   static const String workspacesEndpoint = '/workspaces/';
@@ -15,7 +15,7 @@ class ApiConfig {
 
   // URLs completas
   static String get loginUrl => '$baseUrl$loginEndpoint';
-  static String get registerUrl => '$baseUrl$registerEndpoint';  // ✅ AÑADE ESTO
+  static String get registerUrl => '$baseUrl$registerEndpoint';
   static String get tareasUrl => '$baseUrl$tareasEndpoint';
   static String get categoriasUrl => '$baseUrl$categoriasEndpoint';
   static String get workspacesUrl => '$baseUrl$workspacesEndpoint';

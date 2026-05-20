@@ -18,7 +18,6 @@ import 'presentation/screens/login_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Inicializar formatos de fecha para español
   await initializeDateFormatting('es_ES', null);
   runApp(const MyApp());
 }
@@ -66,7 +65,7 @@ class MyApp extends StatelessWidget {
         child: MaterialApp(
           title: 'TaskFlow',
           debugShowCheckedModeBanner: false,
-          locale: const Locale('es', 'ES'), // Forzar locale a español
+          locale: const Locale('es', 'ES'),
           supportedLocales: const [
             Locale('es', 'ES'),
             Locale('es', ''),
@@ -79,7 +78,7 @@ class MyApp extends StatelessWidget {
           theme: ThemeData(
             primarySwatch: Colors.teal,
             useMaterial3: true,
-            fontFamily: 'Poppins', // Si tienes esta fuente, si no, elimínala
+            fontFamily: 'Poppins',
             appBarTheme: const AppBarTheme(
               backgroundColor: Colors.teal,
               foregroundColor: Colors.white,
@@ -109,7 +108,9 @@ class AuthWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
-        if (state is AuthLoading) {
+        // ✅ CORREGIDO: AuthInitial también muestra el spinner,
+        // evita que se vea LoginScreen un instante al arrancar la app
+        if (state is AuthLoading || state is AuthInitial) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );

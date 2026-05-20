@@ -1,3 +1,5 @@
+// lib/logic/auth/auth_bloc.dart
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 
@@ -13,19 +15,23 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     : _authRepository = authRepository,
       super(AuthInitial()) {
     on<AuthLoginEvent>(_onLogin);
+    on<AuthRegisterEvent>(_onRegister);  // ✅ AÑADE ESTO
     on<AuthLogoutEvent>(_onLogout);
     on<AuthCheckStatusEvent>(_onCheckStatus);
   }
 
-  // Manejar login
   Future<void> _onLogin(AuthLoginEvent event, Emitter<AuthState> emit) async {
     emit(AuthLoading());
 
     try {
-      final token = await _authRepository.login(event.username, event.password);
+      final loginResponse = await _authRepository.login(event.username, event.password);
 
-      if (token != null && token.isNotEmpty) {
-        emit(AuthAuthenticated(token: token));
+      if (loginResponse != null && loginResponse.token.isNotEmpty) {
+        emit(AuthAuthenticated(
+          token: loginResponse.token,
+          userId: loginResponse.userId,
+          username: event.username,
+        ));
       } else {
         emit(const AuthError(message: 'Usuario o contraseña incorrectos'));
       }
@@ -34,26 +40,44 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     }
   }
 
-  // Manejar logout
+  // ✅ MÉTODO DE REGISTRO
+  Future<void> _onRegister(AuthRegisterEvent event, Emitter<AuthState> emit) async {
+    emit(AuthLoading());
+    
+    final response = await _authRepository.register(
+      username: event.username,
+      email: event.email,
+      password: event.password,
+      password2: event.password2,
+    );
+    
+    if (response.success) {
+      emit(AuthRegisterSuccess(message: response.message));
+    } else {
+      emit(AuthRegisterError(message: response.message, errors: response.errors));
+    }
+  }
+
   Future<void> _onLogout(AuthLogoutEvent event, Emitter<AuthState> emit) async {
     emit(AuthLoading());
     await _authRepository.logout();
     emit(AuthUnauthenticated());
   }
 
-  // Verificar si hay sesión guardada (para mantener login al reiniciar app)
   Future<void> _onCheckStatus(
     AuthCheckStatusEvent event,
     Emitter<AuthState> emit,
   ) async {
     emit(AuthLoading());
 
-    final isLoggedIn = await _authRepository.isLoggedIn();
+    final sessionData = await _authRepository.getSessionData();
 
-    if (isLoggedIn) {
-      // Si tenemos token pero no lo tenemos en memoria, lo recuperamos
-      // Por ahora solo verificamos que hay sesión
-      emit(const AuthAuthenticated(token: ''));
+    if (sessionData != null) {
+      emit(AuthAuthenticated(
+        token: sessionData['token'],
+        userId: sessionData['userId'],
+        username: sessionData['username'] ?? '',
+      ));
     } else {
       emit(AuthUnauthenticated());
     }

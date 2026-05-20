@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'dart:developer';
+
 import '../../../core/app_colors.dart';
 import '../../../data/models/workspace_model.dart';
 import '../../../data/models/task_model.dart';
+import '../../../data/repositories/workspace_repository.dart';
 import '../../../logic/task/task_bloc.dart';
+import '../../../logic/auth/auth_bloc.dart';
 import 'workspace_create_task_modal.dart';
 
 class WorkspaceDashboardView extends StatefulWidget {
@@ -24,14 +28,38 @@ class WorkspaceDashboardView extends StatefulWidget {
 }
 
 class _WorkspaceDashboardViewState extends State<WorkspaceDashboardView> {
-
+  // Future cacheado para evitar rebuilds innecesarios
+  late Future<List<Map<String, dynamic>>> _miembrosFuture;
+  
   @override
   void initState() {
     super.initState();
-    // 🔄 Disparamos la carga de tareas reales del Workspace al iniciar la vista
-    // Nota: Si manejas un WorkspaceTaskLoadEvent específico en tu BLoC, úsalo aquí.
-    // De lo contrario, puedes adaptar tu TaskLoadEvent o WorkspaceBloc para manejar este filtro.
-    context.read<TaskBloc>().add(TaskLoadEvent()); 
+    context.read<TaskBloc>().add(TaskLoadEvent());
+    _miembrosFuture = _cargarMiembros();
+  }
+
+  // Getters para obtener datos del usuario autenticado
+  int get _currentUserId {
+    final authState = context.read<AuthBloc>().state;
+    if (authState is AuthAuthenticated) {
+      return authState.userId;
+    }
+    return 0;
+  }
+
+  String get _currentUsername {
+    final authState = context.read<AuthBloc>().state;
+    if (authState is AuthAuthenticated) {
+      return authState.username;
+    }
+    return '';
+  }
+
+  // Método para recargar miembros manualmente (ej: después de invitar)
+  void _recargarMiembros() {
+    setState(() {
+      _miembrosFuture = _cargarMiembros();
+    });
   }
 
   @override
@@ -87,7 +115,6 @@ class _WorkspaceDashboardViewState extends State<WorkspaceDashboardView> {
             }
 
             if (state is TaskLoaded) {
-              // 🔍 Filtramos las tareas que pertenecen estrictamente a este Workspace
               tareasFiltradas = state.tareas.where((t) => t.workspaceId == widget.workspace.id).toList();
             }
 
@@ -95,7 +122,6 @@ class _WorkspaceDashboardViewState extends State<WorkspaceDashboardView> {
               return Center(child: Text(state.message, style: const TextStyle(color: Colors.red)));
             }
 
-            // Cálculos basados en los modelos reactivos de TaskModel
             final int totalTareas = tareasFiltradas.length;
             final int completadas = tareasFiltradas.where((t) => t.completada || t.estado == 'DONE').length;
             final int pendientes = totalTareas - completadas;
@@ -104,6 +130,7 @@ class _WorkspaceDashboardViewState extends State<WorkspaceDashboardView> {
             return RefreshIndicator(
               onRefresh: () async {
                 context.read<TaskBloc>().add(TaskLoadEvent());
+                _recargarMiembros(); // También recargar miembros al refrescar
               },
               color: AppColors.primaryGreen,
               child: SingleChildScrollView(
@@ -146,7 +173,6 @@ class _WorkspaceDashboardViewState extends State<WorkspaceDashboardView> {
     );
   }
 
-  // 📝 LISTA DE TAREAS MEJORADA CON MODELOS REALES
   Widget _buildListaTareasDinamica(List<TaskModel> tareas) {
     if (tareas.isEmpty) {
       return Center(
@@ -190,7 +216,6 @@ class _WorkspaceDashboardViewState extends State<WorkspaceDashboardView> {
         if (tarea.prioridad == 'A') colorPrioridad = Colors.red;
         if (tarea.prioridad == 'M') colorPrioridad = Colors.orange;
 
-        // Extraemos de forma segura el responsable desde el serializador 'asignado_info'
         final stringAsignado = tarea.asignadoInfo != null 
             ? (tarea.asignadoInfo!['username'] ?? 'Sin asignar') 
             : 'Sin asignar';
@@ -263,6 +288,275 @@ class _WorkspaceDashboardViewState extends State<WorkspaceDashboardView> {
     );
   }
 
+  Widget _buildFilaMiembrosDinamica() {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _miembrosFuture, // ✅ Usamos el future cacheado
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+            ),
+            child: const Row(
+              children: [
+                SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                SizedBox(width: 12),
+                Text('Cargando miembros...'),
+              ],
+            ),
+          );
+        }
+        
+        if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+          return Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+            ),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 16,
+                  backgroundColor: AppColors.primaryGreenPastel,
+                  child: Text(
+                    widget.workspace.nombre[0].toUpperCase(),
+                    style: const TextStyle(
+                      color: AppColors.primaryGreen,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Aún no hay miembros con tareas asignadas',
+                    style: TextStyle(fontSize: 13, color: AppColors.textMuted),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+        
+        final miembros = snapshot.data!;
+        
+        return Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
+          ),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  ...miembros.take(3).map((m) => Padding(
+                    padding: const EdgeInsets.only(right: 12.0),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 20,
+                          backgroundColor: (m['rol'] == 'Admin' || 
+                              (widget.workspace.esAdmin && m['id'] == _currentUserId))
+                              ? AppColors.primaryGreenPastel
+                              : Colors.blue.shade50,
+                          child: Text(
+                            (m['username'] as String)[0].toUpperCase(),
+                            style: TextStyle(
+                              color: (m['rol'] == 'Admin' || 
+                                  (widget.workspace.esAdmin && m['id'] == _currentUserId))
+                                  ? AppColors.primaryGreen
+                                  : Colors.blue.shade700,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              m['username'],
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textDark,
+                              ),
+                            ),
+                            Text(
+                              m['rol'] ?? 'Miembro',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: (m['rol'] == 'Admin' || 
+                                    (widget.workspace.esAdmin && m['id'] == _currentUserId))
+                                    ? AppColors.primaryGreen
+                                    : Colors.blue.shade600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  )).toList(),
+                  if (miembros.length > 3)
+                    const Expanded(
+                      child: Text(
+                        '...',
+                        textAlign: TextAlign.right,
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  const Spacer(),
+                  TextButton.icon(
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: widget.workspace.codigo));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('📋 Código de invitación copiado')),
+                      );
+                      _mostrarDialogoMiembros(context, miembros);
+                    },
+                    icon: const Icon(Icons.people_outline, size: 16, color: AppColors.primaryGreen),
+                    label: const Text(
+                      'Ver todos',
+                      style: TextStyle(color: AppColors.primaryGreen, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> _cargarMiembros() async {
+    try {
+      final repository = WorkspaceRepository();
+      final miembros = await repository.getWorkspaceMembers(widget.workspace.id);
+      
+      if (widget.workspace.esAdmin && miembros.every((m) => m['id'] != _currentUserId)) {
+        miembros.insert(0, {
+          'id': _currentUserId,
+          'username': _currentUsername.isNotEmpty ? '$_currentUsername (Tú - Admin)' : 'Tú (Admin)',
+          'email': '',
+          'first_name': '',
+          'last_name': '',
+          'rol': 'Admin',
+        });
+      }
+      
+      return miembros;
+    } catch (e) {
+      log('Error cargando miembros: $e');
+      return [];
+    }
+  }
+
+  void _mostrarDialogoMiembros(BuildContext context, List<Map<String, dynamic>> miembros) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Miembros del Equipo',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '${miembros.length} miembros activos',
+                style: const TextStyle(color: AppColors.textMuted),
+              ),
+              const Divider(height: 24),
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.5,
+                ),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: miembros.length,
+                  separatorBuilder: (_, __) => const Divider(height: 0),
+                  itemBuilder: (context, index) {
+                    final m = miembros[index];
+                    final esAdmin = m['rol'] == 'Admin' || 
+                        (widget.workspace.esAdmin && m['id'] == _currentUserId);
+                    
+                    return ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: esAdmin 
+                            ? AppColors.primaryGreenPastel 
+                            : Colors.blue.shade50,
+                        child: Text(
+                          (m['username'] as String)[0].toUpperCase(),
+                          style: TextStyle(
+                            color: esAdmin 
+                                ? AppColors.primaryGreen 
+                                : Colors.blue.shade700,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      title: Text(
+                        m['username'],
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text(m['rol'] ?? 'Miembro'),
+                      trailing: esAdmin
+                          ? const Icon(Icons.star, color: Colors.amber, size: 18)
+                          : null,
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: widget.workspace.codigo));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Código copiado para invitar')),
+                    );
+                    Navigator.pop(context);
+                  },
+                  icon: const Icon(Icons.share),
+                  label: const Text('Invitar más miembros'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryGreen,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   String _getPrioridadTexto(String inicial) {
     switch (inicial) {
       case 'A': return 'Alta';
@@ -277,7 +571,7 @@ class _WorkspaceDashboardViewState extends State<WorkspaceDashboardView> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('¿Eliminar Workspace?'),
-        content: const Text('Esta acción borrará permanentemente el equipo y todas sus tareas asociadas en Django. ¿Estás seguro?'),
+        content: const Text('Esta acción borrará permanentemente el equipo y todas sus tareas asociadas. ¿Estás seguro?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
           ElevatedButton(
@@ -296,43 +590,25 @@ class _WorkspaceDashboardViewState extends State<WorkspaceDashboardView> {
   Widget _buildCardMetrica(String numero, String texto, IconData icono, Color colorIndicador) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: const Color(0xFFE5E7EB))),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Text(numero, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.textDark)),
-          Icon(icono, color: colorIndicador, size: 20),
-        ]),
-        const SizedBox(height: 8),
-        Text(texto, style: const TextStyle(fontSize: 12, color: AppColors.textMuted, height: 1.2)),
-      ]),
-    );
-  }
-
-  Widget _buildFilaMiembrosDinamica() {
-    final List<Map<String, String>> miembrosVisibles = [{'nombre': 'Sebas', 'rol': 'Admin'}];
-    if (widget.workspace.cantidadMiembros > 1) miembrosVisibles.add({'nombre': 'Lizeth', 'rol': 'Miembro'});
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18), border: Border.all(color: const Color(0xFFE5E7EB))),
-      child: Row(children: [
-        ...miembrosVisibles.map((m) => Padding(
-          padding: const EdgeInsets.only(right: 12.0),
-          child: Row(children: [
-            CircleAvatar(radius: 16, backgroundColor: m['rol'] == 'Admin' ? Colors.orange.withOpacity(0.2) : Colors.purple.withOpacity(0.2), child: Text(m['nombre']![0], style: TextStyle(color: m['rol'] == 'Admin' ? Colors.orange : Colors.purple, fontWeight: FontWeight.bold, fontSize: 12))),
-            const SizedBox(width: 6),
-            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(m['nombre']!, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textDark)), Text(m['rol']!, style: const TextStyle(fontSize: 11, color: AppColors.textMuted))])
-          ]),
-        )).toList(),
-        const Spacer(),
-        TextButton.icon(
-          onPressed: () { 
-            Clipboard.setData(ClipboardData(text: widget.workspace.codigo)); 
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('📋 Código copiado'))); 
-          }, 
-          icon: const Icon(Icons.add, size: 16, color: AppColors.primaryGreen), 
-          label: const Text('Invitar', style: TextStyle(color: AppColors.primaryGreen, fontWeight: FontWeight.bold))
-        )
-      ]),
+      decoration: BoxDecoration(
+        color: Colors.white, 
+        borderRadius: BorderRadius.circular(20), 
+        border: Border.all(color: const Color(0xFFE5E7EB))
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start, 
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween, 
+            children: [
+              Text(numero, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.textDark)),
+              Icon(icono, color: colorIndicador, size: 20),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(texto, style: const TextStyle(fontSize: 12, color: AppColors.textMuted, height: 1.2)),
+        ],
+      ),
     );
   }
 
@@ -344,14 +620,13 @@ class _WorkspaceDashboardViewState extends State<WorkspaceDashboardView> {
       builder: (context) => WorkspaceCreateTaskModal(workspace: widget.workspace)
     );
     if (res != null) {
-      // 🚀 Agregamos el workspace correspondiente a la carga de datos
       res['workspace'] = widget.workspace.id;
       context.read<TaskBloc>().add(TaskCreateEvent(tareaData: res));
+      _recargarMiembros(); // Recargar miembros después de crear tarea
     }
   }
 
   void _abrirFormularioEditar(BuildContext context, TaskModel tarea) async {
-    // Convertimos temporalmente a Map si el modal de creación requiere la data cruda
     final Map<String, dynamic> tareaMap = {
       'titulo': tarea.titulo,
       'descripcion': tarea.descripcion,

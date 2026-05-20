@@ -1,274 +1,335 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../../core/app_colors.dart';
-import '../../../../logic/auth/auth_bloc.dart';
-import '../../../../logic/category/category_bloc.dart';
+
+import '../../../core/app_colors.dart';
+import '../../../logic/auth/auth_bloc.dart';
+import '../../../logic/category/category_bloc.dart';
+import '../../../logic/task/task_bloc.dart';
 
 class CustomDrawer extends StatelessWidget {
+  final Function(String) onFilterChanged;
   final String activeFilter;
-  final ValueChanged<String> onFilterChanged;
+  final VoidCallback? onEquiposTap;  // ✅ Callback para navegar a equipos
+  final VoidCallback? onPerfilTap;   // ✅ Callback para navegar a perfil
 
   const CustomDrawer({
     super.key,
-    required this.activeFilter,
     required this.onFilterChanged,
+    required this.activeFilter,
+    this.onEquiposTap,
+    this.onPerfilTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Drawer(
-      backgroundColor: AppColors.surfaceWhite,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.only(
-          topRight: Radius.circular(30),
-          bottomRight: Radius.circular(30),
-        ),
-      ),
-      child: SafeArea(
+      child: Container(
+        color: Colors.white,
         child: Column(
           children: [
-            // 🚀 ENCABEZADO PREMIUM: LOGO Y SUBTÍTULO
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-              child: Row(
+            // Header del Drawer
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(20, 60, 20, 24),
+              decoration: BoxDecoration(
+                color: AppColors.primaryGreen,
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(24),
+                  bottomRight: Radius.circular(24),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
+                  const CircleAvatar(
+                    radius: 28,
+                    backgroundColor: Colors.white,
+                    child: Icon(
+                      Icons.task_alt,
                       color: AppColors.primaryGreen,
-                      borderRadius: BorderRadius.circular(12),
+                      size: 32,
                     ),
-                    child: const Icon(Icons.check_rounded, color: Colors.white, size: 24),
                   ),
-                  const SizedBox(width: 14),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      Text(
-                        'TaskFlow',
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.textDark),
-                      ),
-                      Text(
-                        'Centro de productividad',
-                        style: TextStyle(fontSize: 12, color: AppColors.textMuted),
-                      ),
-                    ],
-                  )
+                  const SizedBox(height: 12),
+                  const Text(
+                    'TaskFlow',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  BlocBuilder<AuthBloc, AuthState>(
+                    builder: (context, state) {
+                      String username = 'Usuario';
+                      if (state is AuthAuthenticated) {
+                        username = state.username.isNotEmpty ? state.username : 'Usuario';
+                      }
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            username,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
                 ],
               ),
             ),
-            const Divider(color: AppColors.borderLight, height: 1),
-
-            // 📋 MENÚS DE NAVEGACIÓN Y FILTROS PRINCIPALES
+            // Opciones del menú
             Expanded(
               child: ListView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: EdgeInsets.zero,
                 children: [
-                  _buildNavItem(
-                    icon: Icons.light_mode_outlined,
-                    label: 'Mi Día',
-                    isSelected: activeFilter == 'Hoy',
-                    onTap: () {
-                      onFilterChanged('Hoy');
-                      Navigator.pop(context);
-                    },
+                  // Sección: Mi Día
+                  _buildDrawerItem(
+                    icon: Icons.wb_sunny,
+                    title: 'Mi Día',
+                    filterValue: 'Hoy',
+                    isActive: activeFilter == 'Hoy',
+                    onTap: () => onFilterChanged('Hoy'),
                   ),
-                  _buildNavItem(
-                    icon: Icons.calendar_month_outlined,
-                    label: 'Próximas Tareas',
-                    isSelected: activeFilter == 'Próximas',
-                    onTap: () {
-                      onFilterChanged('Próximas');
-                      Navigator.pop(context);
-                    },
+                  // Sección: Próximas Tareas
+                  _buildDrawerItem(
+                    icon: Icons.calendar_today,
+                    title: 'Próximas Tareas',
+                    filterValue: 'Próximas',
+                    isActive: activeFilter == 'Próximas',
+                    onTap: () => onFilterChanged('Próximas'),
                   ),
-                  _buildNavItem(
-                    icon: Icons.check_circle_outline_rounded,
-                    label: 'Completadas',
-                    isSelected: activeFilter == 'Completadas',
-                    onTap: () {
-                      onFilterChanged('Completadas');
-                      Navigator.pop(context);
-                    },
+                  // Sección: Completadas
+                  _buildDrawerItem(
+                    icon: Icons.check_circle_outline,
+                    title: 'Completadas',
+                    filterValue: 'Completadas',
+                    isActive: activeFilter == 'Completadas',
+                    onTap: () => onFilterChanged('Completadas'),
                   ),
-                  const SizedBox(height: 16),
-
-                  // 🏷️ SECCIÓN: CATEGORÍAS (Conectada a la DB real)
-                  _buildSectionHeader('CATEGORÍAS', onAddPressed: () {
-                    // TODO: Aquí puedes abrir tu formulario de crear categoría
-                  }),
-                  BlocBuilder<CategoryBloc, CategoryState>(
-                    builder: (context, state) {
-                      if (state is CategoryLoading) {
-                        return const Center(child: Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryGreen)));
-                      }
-                      if (state is CategoryLoaded) {
-                        return Column(
-                          children: state.categorias.map((cat) {
-                            // Parsea el color hex de tu base de datos o usa el verde manzana si falla
-                            Color catColor;
-                            try {
-                              catColor = Color(int.parse(cat.color.replaceFirst('#', '0xff')));
-                            } catch (_) {
-                              catColor = AppColors.primaryGreen;
-                            }
-
-                            return _buildNavItem(
-                              iconWidget: Container(
-                                width: 10,
-                                height: 10,
-                                decoration: BoxDecoration(color: catColor, shape: BoxShape.circle),
-                              ),
-                              label: cat.nombre,
-                              isSelected: activeFilter == cat.nombre,
-                              trailingText: '0', // Contador de tareas de la db si decides implementarlo
-                              onTap: () {
-                                onFilterChanged(cat.nombre);
-                                Navigator.pop(context);
-                              },
-                            );
-                          }).toList(),
-                        );
-                      }
-                      return const SizedBox();
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // 👥 SECCIÓN: ESPACIO DE EQUIPO (Desplegable interactivo)
-                  Theme(
-                    data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-                    child: ExpansionTile(
-                      leading: Icon(Icons.group_work_outlined, color: AppColors.textDark.withOpacity(0.8), size: 22),
-                      title: const Text(
-                        'Espacio de equipo',
-                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textDark),
+                  const Divider(height: 32, thickness: 1),
+                  // Título CATEGORÍAS
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Text(
+                      'CATEGORÍAS',
+                      style: TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1,
                       ),
-                      iconColor: AppColors.textMuted,
-                      collapsedIconColor: AppColors.textMuted,
-                      childrenPadding: const EdgeInsets.only(left: 12),
-                      children: [
-                        _buildNavItem(
-                          icon: Icons.dashboard_customize_outlined,
-                          label: 'holiwi',
-                          isSelected: activeFilter == 'holiwi',
-                          badgeText: 'Admin',
-                          onTap: () {
-                            onFilterChanged('holiwi');
-                            Navigator.pop(context);
-                          },
-                        ),
-                        _buildNavItem(
-                          icon: Icons.view_kanban_outlined,
-                          label: 'Tablero Kanban',
-                          isSelected: activeFilter == 'Kanban',
-                          onTap: () {
-                            onFilterChanged('Kanban');
-                            Navigator.pop(context);
-                          },
-                        ),
-                      ],
                     ),
                   ),
+                  // Lista de categorías con contador de tareas pendientes
+                  BlocBuilder<CategoryBloc, CategoryState>(
+                    builder: (context, categoryState) {
+                      if (categoryState is CategoryLoaded) {
+                        final categorias = categoryState.categorias;
+                        if (categorias.isEmpty) {
+                          return const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            child: Text(
+                              'No hay categorías',
+                              style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+                            ),
+                          );
+                        }
+                        return BlocBuilder<TaskBloc, TaskState>(
+                          builder: (context, taskState) {
+                            Map<int, int> tareasPorCategoria = {};
+                            
+                            if (taskState is TaskLoaded) {
+                              final tareasPendientes = taskState.tareas.where((t) => !t.completada).toList();
+                              for (final tarea in tareasPendientes) {
+                                if (tarea.categoriaId != null) {
+                                  tareasPorCategoria[tarea.categoriaId!] = 
+                                      (tareasPorCategoria[tarea.categoriaId!] ?? 0) + 1;
+                                }
+                              }
+                            }
+                            
+                            return Column(
+                              children: categorias.map((categoria) {
+                                final count = tareasPorCategoria[categoria.id] ?? 0;
+                                return _buildCategoryItem(
+                                  context: context,
+                                  nombre: categoria.nombre,
+                                  color: categoria.color,
+                                  count: count,
+                                );
+                              }).toList(),
+                            );
+                          },
+                        );
+                      }
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        child: Text(
+                          'Cargando categorías...',
+                          style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+                        ),
+                      );
+                    },
+                  ),
+                  const Divider(height: 32, thickness: 1),
+                  // ✅ SECCIÓN EQUIPOS - Cierra drawer y cambia a la pestaña de equipos
+                  _buildDrawerItem(
+                    icon: Icons.group,
+                    title: 'Equipos',
+                    filterValue: 'equipos',
+                    isActive: false,
+                    onTap: () {
+                      Navigator.pop(context); // Cerrar drawer
+                      if (onEquiposTap != null) {
+                        onEquiposTap!(); // Cambiar a la pestaña de equipos
+                      }
+                    },
+                  ),
+                  // ✅ SECCIÓN PERFIL - Cierra drawer y cambia a la pestaña de perfil
+                  _buildDrawerItem(
+                    icon: Icons.person_outline,
+                    title: 'Perfil',
+                    filterValue: 'perfil',
+                    isActive: false,
+                    onTap: () {
+                      Navigator.pop(context); // Cerrar drawer
+                      if (onPerfilTap != null) {
+                        onPerfilTap!(); // Cambiar a la pestaña de perfil
+                      }
+                    },
+                  ),
+                  // ❌ ELIMINADO "Gestionar Categorías"
+                  const SizedBox(height: 24),
+                  // Botón de cerrar sesión
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        context.read<AuthBloc>().add(AuthLogoutEvent());
+                        Navigator.pop(context);
+                      },
+                      icon: const Icon(Icons.logout, color: Colors.red, size: 18),
+                      label: const Text(
+                        'Cerrar sesión',
+                        style: TextStyle(color: Colors.red),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.red, width: 1),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
                 ],
               ),
             ),
-
-            // ⚙️ SECCIÓN INFERIOR FIJA: PERFIL Y LOGOUT
-            const Divider(color: AppColors.borderLight, height: 1),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Column(
-                children: [
-                  _buildNavItem(
-                    icon: Icons.person_outline_rounded,
-                    label: 'Configuración de Perfil',
-                    isSelected: false,
-                    onTap: () {
-                      Navigator.pop(context);
-                      // TODO: Redirigir a pestaña de perfil o vista correspondiente
-                    },
-                  ),
-                  _buildNavItem(
-                    icon: Icons.logout_rounded,
-                    label: 'Cerrar Sesión',
-                    isSelected: false,
-                    textColor: Colors.redAccent,
-                    iconColor: Colors.redAccent,
-                    onTap: () {
-                      context.read<AuthBloc>().add(AuthLogoutEvent());
-                    },
-                  ),
-                ],
-              ),
-            )
           ],
         ),
       ),
     );
   }
 
-  // --- WIDGETS AUXILIARES DE DISEÑO ---
-  Widget _buildSectionHeader(String title, {required VoidCallback onAddPressed}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(title, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textMuted, letterSpacing: 1.1)),
-          GestureDetector(
-            onTap: onAddPressed,
-            child: const Icon(Icons.add, size: 16, color: AppColors.textMuted),
-          )
-        ],
+  Widget _buildDrawerItem({
+    required IconData icon,
+    required String title,
+    required String filterValue,
+    required bool isActive,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      leading: Icon(
+        icon,
+        color: isActive ? AppColors.primaryGreen : AppColors.textMuted,
+        size: 22,
       ),
+      title: Text(
+        title,
+        style: TextStyle(
+          color: isActive ? AppColors.primaryGreen : AppColors.textDark,
+          fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+          fontSize: 14,
+        ),
+      ),
+      trailing: isActive
+          ? Container(
+              width: 8,
+              height: 8,
+              decoration: const BoxDecoration(
+                color: AppColors.primaryGreen,
+                shape: BoxShape.circle,
+              ),
+            )
+          : null,
+      onTap: onTap,
     );
   }
 
-  Widget _buildNavItem({
-    IconData? icon,
-    Widget? iconWidget,
-    required String label,
-    required bool isSelected,
-    required VoidCallback onTap,
-    String? trailingText,
-    String? badgeText,
-    Color? textColor,
-    Color? iconColor,
+  Widget _buildCategoryItem({
+    required BuildContext context,
+    required String nombre,
+    required String color,
+    required int count,
   }) {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 2),
-      decoration: BoxDecoration(
-        color: isSelected ? AppColors.activeTabBackground : Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: ListTile(
-        onTap: onTap,
-        dense: true,
-        visualDensity: const VisualDensity(vertical: -2),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        leading: iconWidget ?? Icon(
-          icon,
-          color: isSelected ? AppColors.primaryGreen : (iconColor ?? AppColors.textDark.withOpacity(0.8)),
-          size: 22,
+    Color categoryColor = _parseHexColor(color);
+    
+    return ListTile(
+      leading: Container(
+        width: 12,
+        height: 12,
+        decoration: BoxDecoration(
+          color: categoryColor,
+          shape: BoxShape.circle,
         ),
-        title: Text(
-          label,
+      ),
+      title: Text(
+        nombre,
+        style: const TextStyle(
+          color: AppColors.textDark,
+          fontSize: 14,
+        ),
+      ),
+      trailing: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        decoration: BoxDecoration(
+          color: count > 0 ? categoryColor.withOpacity(0.15) : Colors.grey.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          count > 0 ? '$count' : '0',
           style: TextStyle(
-            fontSize: 14,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-            color: isSelected ? AppColors.primaryGreen : (textColor ?? AppColors.textDark),
+            color: count > 0 ? categoryColor : AppColors.textMuted,
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
           ),
         ),
-        trailing: badgeText != null
-            ? Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(color: AppColors.primaryGreenPastel, borderRadius: BorderRadius.circular(8)),
-                child: const Text('Admin', style: TextStyle(fontSize: 10, color: AppColors.primaryGreen, fontWeight: FontWeight.bold)),
-              )
-            : (trailingText != null ? Text(trailingText, style: const TextStyle(fontSize: 12, color: AppColors.textMuted)) : null),
       ),
+      onTap: () {
+        Navigator.pop(context);
+        // TODO: Filtrar tareas por esta categoría
+      },
     );
+  }
+
+  Color _parseHexColor(String hexString) {
+    if (hexString.isEmpty) return AppColors.primaryGreen;
+    
+    try {
+      final buffer = StringBuffer();
+      String cleanHex = hexString.replaceFirst('#', '');
+      if (cleanHex.length == 6) buffer.write('ff');
+      buffer.write(cleanHex);
+      return Color(int.parse(buffer.toString(), radix: 16));
+    } catch (_) {
+      return AppColors.primaryGreen;
+    }
   }
 }

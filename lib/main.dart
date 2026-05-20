@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 import 'data/repositories/auth_repository.dart';
 import 'data/repositories/category_repository.dart';
@@ -14,7 +16,10 @@ import 'logic/workspace/workspace_bloc.dart';
 import 'presentation/screens/home_screen.dart';
 import 'presentation/screens/login_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Inicializar formatos de fecha para español
+  await initializeDateFormatting('es_ES', null);
   runApp(const MyApp());
 }
 
@@ -47,11 +52,11 @@ class MyApp extends StatelessWidget {
               categoryRepository: context.read<CategoryRepository>(),
             ),
           ),
-         BlocProvider(
-  create: (context) => WorkspaceBloc(
-    repository: context.read<WorkspaceRepository>(), // 🚀 ¡Cambia a 'repository'!
-  ),
-),
+          BlocProvider(
+            create: (context) => WorkspaceBloc(
+              repository: context.read<WorkspaceRepository>(),
+            ),
+          ),
           BlocProvider(
             create: (context) => ProfileBloc(
               profileRepository: context.read<ProfileRepository>(),
@@ -61,7 +66,35 @@ class MyApp extends StatelessWidget {
         child: MaterialApp(
           title: 'TaskFlow',
           debugShowCheckedModeBanner: false,
-          theme: ThemeData(primarySwatch: Colors.teal, useMaterial3: true),
+          locale: const Locale('es', 'ES'), // Forzar locale a español
+          supportedLocales: const [
+            Locale('es', 'ES'),
+            Locale('es', ''),
+          ],
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          theme: ThemeData(
+            primarySwatch: Colors.teal,
+            useMaterial3: true,
+            fontFamily: 'Poppins', // Si tienes esta fuente, si no, elimínala
+            appBarTheme: const AppBarTheme(
+              backgroundColor: Colors.teal,
+              foregroundColor: Colors.white,
+              elevation: 0,
+            ),
+            inputDecorationTheme: InputDecorationTheme(
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Colors.teal, width: 2),
+              ),
+            ),
+          ),
           home: const AuthWrapper(),
         ),
       ),

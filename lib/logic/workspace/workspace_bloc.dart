@@ -10,8 +10,7 @@ class WorkspaceBloc extends Bloc<WorkspaceEvent, WorkspaceState> {
   final WorkspaceRepository repository;
 
   WorkspaceBloc({required this.repository}) : super(WorkspaceInitial()) {
-    
-    // Cargar equipos
+
     on<WorkspaceLoadEvent>((event, emit) async {
       emit(WorkspaceLoading());
       try {
@@ -22,14 +21,10 @@ class WorkspaceBloc extends Bloc<WorkspaceEvent, WorkspaceState> {
       }
     });
 
-    // 🚀 NUEVO: Manejador para CREAR un Workspace
     on<WorkspaceCreateEvent>((event, emit) async {
       emit(WorkspaceLoading());
       try {
-        // Envia el Map con el nombre/datos del formulario a Django
-        await repository.createWorkspace(event.workspaceData); 
-        
-        // Refrescamos la lista automáticamente tras crear exitosamente
+        await repository.createWorkspace(event.workspaceData);
         final workspaces = await repository.getWorkspaces();
         emit(WorkspaceLoaded(workspaces: workspaces));
       } catch (e) {
@@ -37,7 +32,22 @@ class WorkspaceBloc extends Bloc<WorkspaceEvent, WorkspaceState> {
       }
     });
 
-    // Eliminar equipos
+    // ← ESTE ERA EL QUE FALTABA
+    on<WorkspaceJoinEvent>((event, emit) async {
+      emit(WorkspaceLoading());
+      try {
+        final exito = await repository.joinWorkspace(event.codigo);
+        if (exito) {
+          final workspaces = await repository.getWorkspaces();
+          emit(WorkspaceLoaded(workspaces: workspaces));
+        } else {
+          emit(const WorkspaceError(message: 'Código incorrecto o workspace no encontrado'));
+        }
+      } catch (e) {
+        emit(WorkspaceError(message: e.toString()));
+      }
+    });
+
     on<WorkspaceDeleteEvent>((event, emit) async {
       emit(WorkspaceLoading());
       try {

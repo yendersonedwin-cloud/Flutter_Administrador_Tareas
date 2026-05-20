@@ -9,15 +9,11 @@ class ProfileRepository {
 
   Future<PerfilModel> getMiPerfil() async {
     try {
-      final response = await _apiService.get('/perfil/');
+      // Usamos /perfil/me/ que es el endpoint correcto del ViewSet
+      final response = await _apiService.get('/perfil/me/');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-
-        if (data is List) {
-          return PerfilModel.fromJson(data.first as Map<String, dynamic>);
-        }
-
         return PerfilModel.fromJson(data as Map<String, dynamic>);
       }
 
@@ -30,7 +26,8 @@ class ProfileRepository {
 
   Future<PerfilModel> updatePerfil(Map<String, dynamic> perfilData) async {
     try {
-      final response = await _apiService.put('/perfil/', perfilData);
+      // PATCH a /perfil/me/ en vez de PUT a /perfil/
+      final response = await _apiService.patch('/perfil/me/', perfilData);
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body) as Map<String, dynamic>;

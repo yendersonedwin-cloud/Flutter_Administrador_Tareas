@@ -1,26 +1,39 @@
+// lib/logic/auth/auth_event.dart
+
 part of 'auth_bloc.dart';
 
-// Eventos de autenticación
 abstract class AuthEvent extends Equatable {
   const AuthEvent();
-
   @override
   List<Object?> get props => [];
 }
 
-// Evento para iniciar sesión
 class AuthLoginEvent extends AuthEvent {
   final String username;
   final String password;
-
   const AuthLoginEvent({required this.username, required this.password});
-
   @override
   List<Object?> get props => [username, password];
 }
 
-// Evento para cerrar sesión
+// ✅ AÑADE ESTE EVENTO
+class AuthRegisterEvent extends AuthEvent {
+  final String username;
+  final String email;
+  final String password;
+  final String password2;
+  
+  const AuthRegisterEvent({
+    required this.username,
+    required this.email,
+    required this.password,
+    required this.password2,
+  });
+  
+  @override
+  List<Object?> get props => [username, email, password, password2];
+}
+
 class AuthLogoutEvent extends AuthEvent {}
 
-// Evento para verificar si ya hay sesión guardada
 class AuthCheckStatusEvent extends AuthEvent {}

@@ -25,12 +25,12 @@ class ApiService {
   }
 
   Future<Map<String, String>> _getHeaders() async {
-    final token = await getToken();
-    return {
-      'Content-Type': 'application/json',
-      if (token != null) 'Authorization': 'Token $token',
-    };
-  }
+  final token = await getToken();
+  return {
+    'Content-Type': 'application/json',
+    if (token != null) 'Authorization': 'Bearer $token',  // ✅ Cambiado de Token a Bearer
+  };
+}
 
   Future<http.Response> get(String endpoint) async {
     final headers = await _getHeaders();

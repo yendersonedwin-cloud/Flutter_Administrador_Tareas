@@ -1,38 +1,53 @@
+// lib/logic/auth/auth_state.dart
+
 part of 'auth_bloc.dart';
 
-// Estado base de autenticación
 abstract class AuthState extends Equatable {
   const AuthState();
-
   @override
   List<Object?> get props => [];
 }
 
-// Estado inicial - cargando
 class AuthInitial extends AuthState {}
 
-// Cargando (verificando token o logueando)
 class AuthLoading extends AuthState {}
 
-// Autenticado exitosamente
 class AuthAuthenticated extends AuthState {
   final String token;
+  final int userId;
+  final String username;
 
-  const AuthAuthenticated({required this.token});
+  const AuthAuthenticated({
+    required this.token,
+    required this.userId,
+    required this.username,
+  });
 
   @override
-  List<Object?> get props => [token];
+  List<Object?> get props => [token, userId, username];
 }
 
-// No autenticado (sin token o token inválido)
 class AuthUnauthenticated extends AuthState {}
 
-// Error en autenticación
+// ✅ ESTADOS PARA REGISTRO
+class AuthRegisterSuccess extends AuthState {
+  final String message;
+  const AuthRegisterSuccess({required this.message});
+  @override
+  List<Object?> get props => [message];
+}
+
+class AuthRegisterError extends AuthState {
+  final String message;
+  final Map<String, dynamic>? errors;
+  const AuthRegisterError({required this.message, this.errors});
+  @override
+  List<Object?> get props => [message, errors];
+}
+
 class AuthError extends AuthState {
   final String message;
-
   const AuthError({required this.message});
-
   @override
   List<Object?> get props => [message];
 }
